@@ -4,43 +4,57 @@ export default async function handler(req, res) {
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown')
     .split(',')[0].trim();
 
-  const uaString = req.headers['user-agent'] || 'No UA';
+  const uaString = req.headers['user-agent'] || '';
 
   let device = 'Unknown Device';
   let browser = 'Unknown Browser';
 
-  // GitHub / Vercel / Bot detection first
-  if (uaString.includes('GitHub') || uaString.includes('vercel') || uaString.length < 40) {
+  // ── STRICT Bot Detection (only real GitHub crawler) ─────────────────────
+  const isGitHubBot = 
+    uaString.includes('GitHub') || 
+    uaString.includes('github') || 
+    uaString.includes('vercel') || 
+    /bot|crawler|spider|preview/i.test(uaString);
+
+  if (isGitHubBot && uaString.length < 100) {
     device = 'GitHub Profile';
     browser = '🤖 Cache Bot';
-  } else {
+  } 
+  else {
+    // Real visitor → use powerful parser
     const parser = new UAParser(uaString);
     const result = parser.getResult();
 
-    // Device
+    // Device detection
     if (result.device.model) {
       device = `${result.device.vendor || ''} ${result.device.model}`.trim();
     } else if (result.device.type) {
-      device = result.device.type === 'mobile' ? 'Mobile' : 
+      device = result.device.type === 'mobile' ? 'Mobile' :
                result.device.type === 'tablet' ? 'Tablet' : 'Desktop';
     } else if (result.os.name) {
       device = result.os.name;
     }
 
-    // Browser
+    // Browser detection
     if (result.browser.name) {
       browser = result.browser.name;
-      if (result.browser.version) browser += ` ${result.browser.version.split('.')[0]}`;
+      if (result.browser.version) {
+        browser += ` ${result.browser.version.split('.')[0]}`;
+      }
     }
+
+    // Fallback improvements
+    if (device === 'Unknown Device' && result.ua) device = 'Desktop';
+    if (browser === 'Unknown Browser' && /Safari/i.test(uaString)) browser = 'Safari';
   }
 
-  // Live Time
+  // ── Live Time ─────────────────────────────────────
   const liveTime = new Date().toLocaleString('en-GB', {
     timeZone: 'UTC',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   });
 
-  // Geo
+  // ── Geo Location ─────────────────────────────────────
   let country = 'Unknown', flag = '🌍', city = '';
   try {
     const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,countryCode,city`);
@@ -48,12 +62,14 @@ export default async function handler(req, res) {
     if (data.country) {
       country = data.country;
       city = data.city ? `, ${data.city}` : '';
-      flag = data.countryCode.split('').map(c => 
-        String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
-      ).join('');
+      flag = data.countryCode
+        .split('')
+        .map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65))
+        .join('');
     }
   } catch (e) {}
 
+  // ── SVG (clean & neon) ─────────────────────────────────────
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="660" height="360" viewBox="0 0 660 360">
   <defs>
@@ -63,6 +79,7 @@ export default async function handler(req, res) {
     </filter>
   </defs>
   <rect width="660" height="360" fill="#0a0a1f" rx="20"/>
+  
   <text x="330" y="52" text-anchor="middle" fill="#ff00ff" font-family="monospace" font-size="32" font-weight="bold" filter="url(#glow)">CYBERPUNK VISITOR DETECTED</text>
   <text x="330" y="78" text-anchor="middle" fill="#00f0ff" font-family="monospace" font-size="15">TAHMEEDH.GITHUB.IO // LIVE FEED</text>
   
@@ -75,7 +92,7 @@ export default async function handler(req, res) {
   <text x="45" y="243" fill="#fff" font-family="monospace" font-size="27">${flag} ${country}${city}</text>
 
   <text x="45" y="275" fill="#00f0ff" font-family="monospace" font-size="18">DEVICE / BROWSER</text>
-  <text x="45" y="308" fill="#fff" font-family="monospace" font-size="25.5">${device} • ${browser}</text>
+  <text x="45" y="308" fill="#fff" font-family="monospace" font-size="25">${device} • ${browser}</text>
 
   <text x="480" y="140" fill="#ff00ff" font-family="monospace" font-size="18" text-anchor="middle">LIVE UTC TIME</text>
   <text x="480" y="180" fill="#00ffff" font-family="monospace" font-size="36" font-weight="bold" text-anchor="middle">${liveTime}</text>
