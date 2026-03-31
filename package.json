@@ -1,0 +1,24 @@
+{
+  "name": "cyber-widget",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tahmeedh/cyber-widget.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tahmeedh/cyber-widget/issues"
+  },
+  "homepage": "https://github.com/tahmeedh/cyber-widget#readme",
+  "dependencies": {
+    "ua-parser-js": "^2.0.9"
+  }
+}

@@ -1,30 +1,31 @@
+import UAParser from 'ua-parser-js';
+
 export default async function handler(req, res) {
   let ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown')
     .split(',')[0].trim();
 
-  const ua = req.headers['user-agent'] || '';
+  const uaString = req.headers['user-agent'] || '';
+  const parser = new UAParser(uaString);
+  const result = parser.getResult();
 
-  // ── Improved Device Detection ─────────────────────────────────
-  let device = 'Unknown Device';
-  if (/iPhone|iPad|iPod/i.test(ua)) device = 'iOS';
-  else if (/Android/i.test(ua)) device = 'Android';
-  else if (/Windows/i.test(ua)) device = 'Windows';
-  else if (/Macintosh|Mac OS X/i.test(ua)) device = 'macOS';
-  else if (/Linux/i.test(ua) && !/Android/i.test(ua)) device = 'Linux';
+  // Clean device name
+  let device = result.device.model 
+    ? `${result.device.vendor || ''} ${result.device.model}`.trim() 
+    : result.os.name || 'Unknown Device';
 
-  // ── Improved Browser Detection ───────────────────────────────
-  let browser = 'Unknown Browser';
-  if (/Edg/i.test(ua)) browser = 'Edge';
-  else if (/Chrome|CriOS/i.test(ua) && !/Edg/i.test(ua)) browser = 'Chrome';
-  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox';
-  else if (/Safari/i.test(ua) && !/CriOS|Chrome|Edg/i.test(ua)) browser = 'Safari';
-  else if (/Opera|OPR/i.test(ua)) browser = 'Opera';
-  else if (/Brave/i.test(ua)) browser = 'Brave';
+  if (device === 'Unknown Device' && result.device.type) {
+    device = result.device.type.charAt(0).toUpperCase() + result.device.type.slice(1);
+  }
 
-  // Fallback for mobile + version if possible
-  if (device === 'iOS' && browser === 'Unknown Browser') browser = 'Safari';
+  let browser = `${result.browser.name || 'Unknown Browser'} ${result.browser.version ? result.browser.version.split('.')[0] : ''}`.trim();
 
-  // ── Live Time & Geo (kept from before) ───────────────────────
+  // GitHub crawler fallback
+  if (uaString.includes('GitHub') || uaString.length < 30) {
+    device = 'GitHub Preview';
+    browser = '🤖 Bot';
+  }
+
+  // ── Live Time ─────────────────────────────────────
   const liveTime = new Date().toLocaleString('en-GB', {
     timeZone: 'UTC',
     hour: '2-digit',
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
     hour12: false
   });
 
+  // ── Geo (unchanged) ─────────────────────────────────────
   let country = 'Unknown';
   let flag = '🌍';
   let city = '';
@@ -49,37 +51,37 @@ export default async function handler(req, res) {
     }
   } catch (e) {}
 
-  // ── Updated SVG with better styling & glow ───────────────────
+  // ── SVG (same beautiful design) ─────────────────────────────────────
   const svg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="620" height="340" viewBox="0 0 620 340">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="355" viewBox="0 0 640 355">
   <defs>
     <filter id="neonpink" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#ff00ff"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#ff00ff"/>
     </filter>
     <filter id="neoncyan" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#00f0ff"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#00f0ff"/>
     </filter>
   </defs>
-  <rect width="620" height="340" fill="#0a0a1f" rx="20"/>
+  <rect width="640" height="355" fill="#0a0a1f" rx="20"/>
   
-  <text x="310" y="48" text-anchor="middle" fill="#ff00ff" font-family="monospace" font-size="29" font-weight="bold" filter="url(#neonpink)">CYBERPUNK VISITOR DETECTED</text>
-  <text x="310" y="72" text-anchor="middle" fill="#00f0ff" font-family="monospace" font-size="14">TAHMEEDH.GITHUB.IO // LIVE FEED</text>
+  <text x="320" y="50" text-anchor="middle" fill="#ff00ff" font-family="monospace" font-size="31" font-weight="bold" filter="url(#neonpink)">CYBERPUNK VISITOR DETECTED</text>
+  <text x="320" y="75" text-anchor="middle" fill="#00f0ff" font-family="monospace" font-size="14.5">TAHMEEDH.GITHUB.IO // LIVE FEED</text>
 
-  <line x1="40" y1="95" x2="580" y2="95" stroke="#00f0ff" stroke-width="2.5" opacity="0.7"/>
+  <line x1="40" y1="100" x2="600" y2="100" stroke="#00f0ff" stroke-width="3" opacity="0.7"/>
 
-  <text x="40" y="130" fill="#00f0ff" font-family="monospace" font-size="18">IP ADDRESS</text>
-  <text x="40" y="162" fill="#ffffff" font-family="monospace" font-size="27" font-weight="bold" filter="url(#neoncyan)">${ip}</text>
+  <text x="40" y="135" fill="#00f0ff" font-family="monospace" font-size="18">IP ADDRESS</text>
+  <text x="40" y="168" fill="#ffffff" font-family="monospace" font-size="28" font-weight="bold" filter="url(#neoncyan)">${ip}</text>
 
-  <text x="40" y="200" fill="#00f0ff" font-family="monospace" font-size="18">LOCATION</text>
-  <text x="40" y="232" fill="#ffffff" font-family="monospace" font-size="26">${flag} ${country}${city}</text>
+  <text x="40" y="205" fill="#00f0ff" font-family="monospace" font-size="18">LOCATION</text>
+  <text x="40" y="237" fill="#ffffff" font-family="monospace" font-size="26">${flag} ${country}${city}</text>
 
-  <text x="40" y="265" fill="#00f0ff" font-family="monospace" font-size="18">DEVICE / BROWSER</text>
-  <text x="40" y="297" fill="#ffffff" font-family="monospace" font-size="24">${device} • ${browser}</text>
+  <text x="40" y="270" fill="#00f0ff" font-family="monospace" font-size="18">DEVICE / BROWSER</text>
+  <text x="40" y="302" fill="#ffffff" font-family="monospace" font-size="24.5">${device} • ${browser}</text>
 
-  <text x="430" y="130" fill="#ff00ff" font-family="monospace" font-size="18" text-anchor="middle">LIVE UTC TIME</text>
-  <text x="430" y="170" fill="#00ffff" font-family="monospace" font-size="34" font-weight="bold" text-anchor="middle" filter="url(#neoncyan)">${liveTime}</text>
+  <text x="460" y="135" fill="#ff00ff" font-family="monospace" font-size="18" text-anchor="middle">LIVE UTC TIME</text>
+  <text x="460" y="175" fill="#00ffff" font-family="monospace" font-size="35" font-weight="bold" text-anchor="middle" filter="url(#neoncyan)">${liveTime}</text>
 
-  <text x="310" y="325" text-anchor="middle" fill="#00f0ff" font-family="monospace" font-size="13" opacity="0.75">YOU JUST GOT SCANNED 👁️‍🗨️ STAY FROSTY</text>
+  <text x="320" y="340" text-anchor="middle" fill="#00f0ff" font-family="monospace" font-size="13.5" opacity="0.8">YOU JUST GOT SCANNED 👁️‍🗨️ STAY FROSTY</text>
 </svg>`;
 
   res.setHeader('Content-Type', 'image/svg+xml');
